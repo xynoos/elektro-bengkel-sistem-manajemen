@@ -19,18 +19,18 @@ export interface Database {
           deskripsi: string | null
           gambar_url: string | null
           tanggal_ditambahkan: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           id?: string
           nama: string
           jumlah: number
-          kondisi: string
-          status_stok: string
+          kondisi?: string
+          status_stok?: string
           deskripsi?: string | null
           gambar_url?: string | null
           tanggal_ditambahkan?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -41,36 +41,39 @@ export interface Database {
           deskripsi?: string | null
           gambar_url?: string | null
           tanggal_ditambahkan?: string
-          updated_at?: string | null
+          updated_at?: string
         }
       }
       profiles: {
         Row: {
           id: string
           email: string
-          nama: string
+          nama: string | null
+          kelas: string | null
           role: string
-          avatar_url: string | null
+          status: string
           created_at: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           id: string
           email: string
-          nama: string
+          nama?: string | null
+          kelas?: string | null
           role?: string
-          avatar_url?: string | null
+          status?: string
           created_at?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           id?: string
           email?: string
-          nama?: string
+          nama?: string | null
+          kelas?: string | null
           role?: string
-          avatar_url?: string | null
+          status?: string
           created_at?: string
-          updated_at?: string | null
+          updated_at?: string
         }
       }
       peminjaman: {
@@ -83,18 +86,18 @@ export interface Database {
           tanggal_kembali: string | null
           status: string
           created_at: string
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
           alat_id: string
-          jumlah: number
+          jumlah?: number
           tanggal_pinjam?: string
           tanggal_kembali?: string | null
           status?: string
           created_at?: string
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -105,21 +108,13 @@ export interface Database {
           tanggal_kembali?: string | null
           status?: string
           created_at?: string
-          updated_at?: string | null
+          updated_at?: string
         }
       }
     }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    Views: {}
+    Functions: {}
+    Enums: {}
+    CompositeTypes: {}
   }
 }
