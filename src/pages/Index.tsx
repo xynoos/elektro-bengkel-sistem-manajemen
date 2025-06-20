@@ -1,11 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Wrench, Users, BookOpen, ArrowRight } from "lucide-react";
+import { Wrench, Users, BookOpen, ArrowRight, GraduationCap } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
