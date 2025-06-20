@@ -136,20 +136,46 @@ const Index = () => {
               Platform digital untuk mengelola inventaris alat bengkel elektro, 
               sistem peminjaman yang efisien, dan monitoring real-time untuk SMK Elektro.
             </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+              <Button 
+                size="lg" 
+                onClick={() => navigate('/student-register')}
+                className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-lg px-8 py-3"
+              >
+                Daftar Siswa
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                onClick={() => navigate('/teacher-register')}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg px-8 py-3"
+              >
+                Daftar Guru
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 size="lg" 
-                onClick={() => navigate('/register')}
-                className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-lg px-8 py-3"
+                variant="outline" 
+                onClick={() => navigate('/student-auth')}
+                className="text-lg px-8 py-3 hover:bg-blue-50"
               >
-                Mulai Sekarang
-                <ArrowRight className="ml-2 h-5 w-5" />
+                Login Siswa
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                onClick={() => navigate('/teacher-auth')}
+                className="text-lg px-8 py-3 hover:bg-purple-50"
+              >
+                Login Guru
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
                 onClick={() => navigate('/auth')}
-                className="text-lg px-8 py-3 hover:bg-blue-50"
+                className="text-lg px-8 py-3 hover:bg-gray-50"
               >
                 Login Admin
               </Button>
@@ -164,7 +190,7 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
             Fitur Unggulan
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-4 gap-8">
             <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-blue-50 to-blue-100">
               <CardHeader>
                 <div className="p-3 bg-blue-600 rounded-lg w-fit mb-4">
@@ -196,7 +222,19 @@ const Index = () => {
                 </div>
                 <CardTitle className="text-purple-800">Verifikasi Akun</CardTitle>
                 <CardDescription>
-                  Sistem verifikasi siswa yang aman dan terkontrol oleh admin
+                  Sistem verifikasi siswa dan guru yang aman dan terkontrol oleh admin
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300 bg-gradient-to-br from-orange-50 to-orange-100">
+              <CardHeader>
+                <div className="p-3 bg-orange-600 rounded-lg w-fit mb-4">
+                  <GraduationCap className="h-6 w-6 text-white" />
+                </div>
+                <CardTitle className="text-orange-800">Multi Role</CardTitle>
+                <CardDescription>
+                  Akses terpisah untuk siswa, guru dan admin dengan fitur yang sesuai
                 </CardDescription>
               </CardHeader>
             </Card>
