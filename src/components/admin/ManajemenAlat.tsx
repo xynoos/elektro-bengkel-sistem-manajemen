@@ -11,11 +11,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Package, Edit, Trash2, ImageOff } from "lucide-react";
-import { Database } from "@/types";
 import { PostgrestError } from "@supabase/supabase-js";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
-type Alat = Database['public']['Tables']['alat']['Row'];
+// Use the correct type from the database schema
+type Alat = {
+  id: string;
+  nama: string;
+  jumlah: number;
+  kondisi: string;
+  status_stok: string;
+  deskripsi: string | null;
+  gambar_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
 
 interface ManajemenAlatProps {
   onStatsUpdate: () => void;

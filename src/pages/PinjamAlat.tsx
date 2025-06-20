@@ -20,7 +20,8 @@ const PinjamAlat = () => {
   const [formData, setFormData] = useState({
     alat_id: "",
     jumlah: "",
-    keperluan: ""
+    keperluan: "",
+    tanggal_kembali_rencana: ""
   });
 
   useEffect(() => {
@@ -77,6 +78,9 @@ const PinjamAlat = () => {
         throw new Error('Jumlah peminjaman melebihi stok yang tersedia');
       }
 
+      // Get current date for tanggal_pinjam
+      const today = new Date().toISOString().split('T')[0];
+
       const { error } = await supabase
         .from('peminjaman')
         .insert({
@@ -84,6 +88,8 @@ const PinjamAlat = () => {
           alat_id: formData.alat_id,
           jumlah: parseInt(formData.jumlah),
           keperluan: formData.keperluan,
+          tanggal_pinjam: today,
+          tanggal_kembali_rencana: formData.tanggal_kembali_rencana,
           status: 'pending'
         });
 
@@ -107,6 +113,13 @@ const PinjamAlat = () => {
   };
 
   const selectedAlat = alat.find(a => a.id === formData.alat_id);
+
+  // Get minimum date (tomorrow)
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -179,6 +192,19 @@ const PinjamAlat = () => {
                     max={selectedAlat?.jumlah || 1}
                     value={formData.jumlah}
                     onChange={(e) => setFormData(prev => ({ ...prev, jumlah: e.target.value }))}
+                    required
+                    className="focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tanggal_kembali_rencana">Tanggal Rencana Pengembalian</Label>
+                  <Input
+                    id="tanggal_kembali_rencana"
+                    type="date"
+                    min={getMinDate()}
+                    value={formData.tanggal_kembali_rencana}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tanggal_kembali_rencana: e.target.value }))}
                     required
                     className="focus:ring-blue-500 focus:border-blue-500"
                   />
