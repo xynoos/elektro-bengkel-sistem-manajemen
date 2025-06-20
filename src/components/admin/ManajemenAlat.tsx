@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Package, Edit, Trash2, ImageOff } from "lucide-react";
+import { Plus, Package, Edit, Trash2, ImageOff, Upload } from "lucide-react";
 import { PostgrestError } from "@supabase/supabase-js";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
@@ -104,28 +104,39 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
 
       // Generate unique filename
       const timestamp = Date.now();
-      const fileName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
-      const filePath = `${timestamp}-${fileName}`;
+      const randomString = Math.random().toString(36).substring(2, 15);
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `${timestamp}-${randomString}.${fileExtension}`;
 
-      console.log('Uploading file:', filePath);
+      console.log('Uploading file to item-images bucket:', fileName);
 
       // Upload file ke bucket item-images
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('item-images')
-        .upload(filePath, file, {
+        .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false
         });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        throw uploadError;
+        throw new Error(`Upload gagal: ${uploadError.message}`);
       }
 
       console.log('Upload successful:', uploadData);
-      return filePath;
+      toast({
+        title: "Upload Berhasil",
+        description: "Gambar berhasil diupload",
+      });
+
+      return fileName;
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast({
+        title: "Error Upload",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat upload gambar",
+        variant: "destructive",
+      });
       throw error;
     } finally {
       setUploading(false);
@@ -157,7 +168,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
         jumlah: parseInt(formData.jumlah),
         kondisi: formData.kondisi,
         status_stok: formData.status_stok,
-        deskripsi: formData.deskripsi,
+        deskripsi: formData.deskripsi || null,
         gambar_url
       };
 
@@ -190,10 +201,11 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
       onStatsUpdate();
       resetForm();
     } catch (error) {
+      console.error('Submit error:', error);
       const pgError = error as PostgrestError;
       toast({
         title: "Error",
-        description: pgError.message || "Terjadi kesalahan saat menambahkan alat",
+        description: pgError.message || "Terjadi kesalahan saat menyimpan data alat",
         variant: "destructive",
       });
     }
@@ -243,14 +255,16 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
     const statusConfig = {
       aman: { variant: "default" as const, label: "Tersedia" },
       hampir_habis: { variant: "secondary" as const, label: "Terbatas" },
-      kosong: { variant: "destructive" as const, label: "Kosong" },
-      pending_pengadaan: { variant: "outline" as const, label: "Pengadaan" }
+      habis: { variant: "destructive" as const, label: "Habis" },
+      kosong: { variant: "destructive" as const, label: "Kosong" }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig];
     return config ? (
       <Badge variant={config.variant}>{config.label} ({jumlah})</Badge>
-    ) : null;
+    ) : (
+      <Badge variant="outline">{status} ({jumlah})</Badge>
+    );
   };
 
   return (
@@ -308,6 +322,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     <SelectContent>
                       <SelectItem value="baru">Baru</SelectItem>
                       <SelectItem value="bekas">Bekas</SelectItem>
+                      <SelectItem value="rusak">Rusak</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -324,8 +339,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     <SelectContent>
                       <SelectItem value="aman">Aman</SelectItem>
                       <SelectItem value="hampir_habis">Hampir Habis</SelectItem>
-                      <SelectItem value="kosong">Kosong</SelectItem>
-                      <SelectItem value="pending_pengadaan">Pending Pengadaan</SelectItem>
+                      <SelectItem value="habis">Habis</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -337,6 +351,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                   id="deskripsi"
                   value={formData.deskripsi}
                   onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
+                  placeholder="Deskripsi alat (opsional)"
                 />
               </div>
 
@@ -345,7 +360,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                 <Input
                   id="gambar"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -363,7 +378,14 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                   Batal
                 </Button>
                 <Button type="submit" disabled={uploading}>
-                  {uploading ? "Mengupload..." : editingId ? "Simpan Perubahan" : "Tambah Alat"}
+                  {uploading ? (
+                    <>
+                      <Upload className="mr-2 h-4 w-4 animate-spin" />
+                      Mengupload...
+                    </>
+                  ) : (
+                    editingId ? "Simpan Perubahan" : "Tambah Alat"
+                  )}
                 </Button>
               </div>
             </form>
@@ -407,7 +429,9 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                         src={getImageUrl(item.gambar_url) || ''}
                         alt={item.nama}
                         className="h-full w-full object-cover transition-opacity duration-300"
+                        onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
                         onError={(e) => {
+                          console.error('Image failed to load:', item.gambar_url);
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
                           const parent = target.parentElement;
