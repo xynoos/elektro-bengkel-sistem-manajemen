@@ -27,7 +27,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     nama: "",
     jumlah: "",
@@ -42,36 +42,6 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
     fetchAlat();
   }, []);
 
-  useEffect(() => {
-    // Ambil URL publik untuk setiap gambar
-    const loadImageUrls = async () => {
-      const urls: Record<string, string> = {};
-      for (const item of alat) {
-        if (item.gambar_url) {
-          console.log('Loading image for item:', item.id, 'Path:', item.gambar_url);
-          try {
-            const { data } = supabase.storage
-              .from('alat-images')
-              .getPublicUrl(item.gambar_url);
-            
-            if (data?.publicUrl) {
-              console.log('Got public URL:', data.publicUrl);
-              urls[item.id] = data.publicUrl;
-            } else {
-              console.error('No public URL returned for item:', item.id);
-            }
-          } catch (error) {
-            console.error('Error getting public URL for item:', item.id, error);
-          }
-        }
-      }
-      console.log('Final image URLs:', urls);
-      setImageUrls(urls);
-    };
-
-    loadImageUrls();
-  }, [alat]);
-
   const fetchAlat = async () => {
     try {
       const { data, error } = await supabase
@@ -83,6 +53,11 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
       setAlat(data || []);
     } catch (error) {
       console.error('Error fetching alat:', error);
+      toast({
+        title: "Error",
+        description: "Gagal mengambil data alat",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -104,22 +79,29 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
 
   const handleImageUpload = async (file: File) => {
     try {
+      setUploading(true);
+      
       // Validasi tipe file
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
-        throw new Error('Tipe file tidak didukung. Gunakan format JPG, PNG, atau GIF.');
+        throw new Error('Tipe file tidak didukung. Gunakan format JPG, PNG, GIF, atau WebP.');
       }
 
-      // Gunakan nama file asli dengan timestamp
+      // Validasi ukuran file (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Ukuran file terlalu besar. Maksimal 5MB.');
+      }
+
+      // Generate unique filename
       const timestamp = Date.now();
       const fileName = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
       const filePath = `${timestamp}-${fileName}`;
 
       console.log('Uploading file:', filePath);
 
-      // Upload file ke bucket alat-images
+      // Upload file ke bucket item-images
       const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('alat-images')
+        .from('item-images')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -131,19 +113,23 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
       }
 
       console.log('Upload successful:', uploadData);
-
-      // Dapatkan URL publik
-      const { data } = supabase.storage
-        .from('alat-images')
-        .getPublicUrl(filePath);
-
-      console.log('Public URL:', data?.publicUrl);
-
       return filePath;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
+    } finally {
+      setUploading(false);
     }
+  };
+
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return null;
+    
+    const { data } = supabase.storage
+      .from('item-images')
+      .getPublicUrl(imagePath);
+    
+    return data?.publicUrl || null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,8 +204,6 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus alat ini?')) return;
-
     try {
       const { error } = await supabase
         .from('alat')
@@ -249,7 +233,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
     const statusConfig = {
       aman: { variant: "default" as const, label: "Tersedia" },
       hampir_habis: { variant: "secondary" as const, label: "Terbatas" },
-      habis: { variant: "destructive" as const, label: "Habis" },
+      kosong: { variant: "destructive" as const, label: "Kosong" },
       pending_pengadaan: { variant: "outline" as const, label: "Pengadaan" }
     };
 
@@ -314,7 +298,6 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     <SelectContent>
                       <SelectItem value="baru">Baru</SelectItem>
                       <SelectItem value="bekas">Bekas</SelectItem>
-                      <SelectItem value="rusak">Rusak</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -331,7 +314,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     <SelectContent>
                       <SelectItem value="aman">Aman</SelectItem>
                       <SelectItem value="hampir_habis">Hampir Habis</SelectItem>
-                      <SelectItem value="habis">Habis</SelectItem>
+                      <SelectItem value="kosong">Kosong</SelectItem>
                       <SelectItem value="pending_pengadaan">Pending Pengadaan</SelectItem>
                     </SelectContent>
                   </Select>
@@ -348,7 +331,7 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="gambar">Gambar</Label>
+                <Label htmlFor="gambar">Gambar Alat</Label>
                 <Input
                   id="gambar"
                   type="file"
@@ -360,14 +343,17 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     }
                   }}
                 />
+                <p className="text-sm text-gray-500">
+                  Format yang didukung: JPG, PNG, GIF, WebP. Maksimal 5MB.
+                </p>
               </div>
 
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" type="button" onClick={resetForm}>
                   Batal
                 </Button>
-                <Button type="submit">
-                  {editingId ? "Simpan Perubahan" : "Tambah Alat"}
+                <Button type="submit" disabled={uploading}>
+                  {uploading ? "Mengupload..." : editingId ? "Simpan Perubahan" : "Tambah Alat"}
                 </Button>
               </div>
             </form>
@@ -377,12 +363,16 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          <p>Loading...</p>
+          <div className="col-span-full text-center py-8">
+            <p>Memuat data alat...</p>
+          </div>
         ) : alat.length === 0 ? (
-          <p>Belum ada alat yang ditambahkan.</p>
+          <div className="col-span-full text-center py-8">
+            <p>Belum ada alat yang ditambahkan.</p>
+          </div>
         ) : (
           alat.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="overflow-hidden">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span className="flex items-center">
@@ -395,54 +385,47 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                   Kondisi: {item.kondisi}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 {item.deskripsi && (
-                  <p className="text-sm text-gray-500 mb-4">{item.deskripsi}</p>
+                  <p className="text-sm text-gray-600">{item.deskripsi}</p>
                 )}
-                <div className="mb-4 overflow-hidden rounded-lg border bg-white shadow-sm">
+                
+                <div className="overflow-hidden rounded-lg border bg-white shadow-sm">
                   <AspectRatio ratio={4/3} className="bg-gray-50">
                     {item.gambar_url ? (
-                      <div className="relative h-full w-full bg-white">
-                        <img
-                          src={imageUrls[item.id]}
-                          alt={item.nama}
-                          className="h-full w-full object-contain p-2 transition-opacity duration-300 ease-in-out"
-                          loading="lazy"
-                          onLoad={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.opacity = '1';
-                          }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const parent = target.parentElement;
-                            if (parent) {
-                              const errorDiv = document.createElement('div');
-                              errorDiv.className = 'absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gray-50/80 backdrop-blur-sm';
-                              errorDiv.innerHTML = `
-                                <div class="rounded-full bg-gray-100/80 p-3">
-                                  <svg class="h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <img
+                        src={getImageUrl(item.gambar_url) || ''}
+                        alt={item.nama}
+                        className="h-full w-full object-cover transition-opacity duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50">
+                                <div class="rounded-full bg-gray-100 p-3">
+                                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                   </svg>
                                 </div>
                                 <span class="text-sm font-medium text-gray-600">Gambar tidak dapat dimuat</span>
-                              `;
-                              parent.appendChild(errorDiv);
-                            }
-                          }}
-                          style={{ opacity: 0 }}
-                        />
-                      </div>
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50/50">
-                        <div className="rounded-full bg-gray-100/80 p-3">
-                          <Package className="h-6 w-6 text-gray-400" />
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50">
+                        <div className="rounded-full bg-gray-100 p-3">
+                          <ImageOff className="h-6 w-6 text-gray-400" />
                         </div>
                         <span className="text-sm font-medium text-gray-600">Belum ada gambar</span>
                       </div>
                     )}
                   </AspectRatio>
                 </div>
+
                 <div className="flex justify-end space-x-2">
                   <Button
                     variant="outline"
@@ -453,25 +436,27 @@ const ManajemenAlat = ({ onStatsUpdate }: ManajemenAlatProps) => {
                     Edit
                   </Button>
                   <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Hapus
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Hapus Alat</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Apakah Anda yakin ingin menghapus alat ini? Tindakan ini tidak dapat dibatalkan.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Batal</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(item.id)}>Hapus</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Hapus
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Alat</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Apakah Anda yakin ingin menghapus alat "{item.nama}"? Tindakan ini tidak dapat dibatalkan.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(item.id)}>
+                          Hapus
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </CardContent>
             </Card>
