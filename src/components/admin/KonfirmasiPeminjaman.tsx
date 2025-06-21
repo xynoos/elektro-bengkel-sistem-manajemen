@@ -27,7 +27,7 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
         .select(`
           *,
           profiles:user_id (nama_lengkap, kelas, jurusan, role),
-          alat:alat_id (nama, jumlah)
+          alat:alat_id (nama, jumlah, kategori)
         `)
         .order('created_at', { ascending: false });
 
@@ -36,6 +36,11 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
       setPeminjaman(data || []);
     } catch (error) {
       console.error('Error fetching peminjaman:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data peminjaman",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -161,6 +166,19 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
     );
   };
 
+  const getCategoryBadge = (kategori: string) => {
+    const colors = {
+      'alat': 'bg-blue-100 text-blue-800',
+      'bahan': 'bg-green-100 text-green-800'
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[kategori as keyof typeof colors] || 'bg-gray-100 text-gray-800'}`}>
+        {kategori || 'Tidak dikategorikan'}
+      </span>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-8">
@@ -182,84 +200,88 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {peminjaman.map((item) => (
-            <Card key={item.id} className="shadow-sm">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h4 className="font-semibold">{item.alat?.nama || 'Alat tidak ditemukan'}</h4>
-                      {getStatusBadge(item.status)}
-                      <Badge variant="outline" className="text-xs">
-                        {item.profiles?.role === 'siswa' ? 'Siswa' : 'Guru'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div className="space-y-1">
-                        <p><strong>Peminjam:</strong> {item.profiles?.nama_lengkap || 'Nama tidak tersedia'}</p>
-                        {item.profiles?.role === 'siswa' && (
-                          <p><strong>Kelas:</strong> {item.profiles?.kelas} - {item.profiles?.jurusan}</p>
-                        )}
-                        <p><strong>Jumlah:</strong> {item.jumlah}</p>
-                        {item.keperluan && (
-                          <p><strong>Keperluan:</strong> {item.keperluan}</p>
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <p><strong>Tanggal Pinjam:</strong> {new Date(item.tanggal_pinjam).toLocaleDateString('id-ID')}</p>
-                        {item.tanggal_kembali_rencana && (
-                          <p><strong>Rencana Kembali:</strong> {new Date(item.tanggal_kembali_rencana).toLocaleDateString('id-ID')}</p>
-                        )}
-                        {item.tanggal_kembali && (
-                          <p><strong>Tanggal Kembali:</strong> {new Date(item.tanggal_kembali).toLocaleDateString('id-ID')}</p>
-                        )}
-                        <p><strong>Dibuat:</strong> {new Date(item.created_at).toLocaleDateString('id-ID')}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2 ml-4">
-                    {item.status === 'pending' && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproval(item.id, 'disetujui')}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Setujui
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleApproval(item.id, 'ditolak')}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Tolak
-                        </Button>
-                      </>
-                    )}
-                    
-                    {item.status === 'disetujui' && !item.dikembalikan && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleReturn(item.id)}
-                      >
-                        <Package className="h-4 w-4 mr-1" />
-                        Konfirmasi Kembali
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          {peminjaman.length === 0 && (
+          {peminjaman.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               Belum ada pengajuan peminjaman
             </div>
+          ) : (
+            peminjaman.map((item) => (
+              <Card key={item.id} className="shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h4 className="font-semibold">{item.alat?.nama || 'Alat tidak ditemukan'}</h4>
+                        {getStatusBadge(item.status)}
+                        <Badge variant="outline" className="text-xs">
+                          {item.profiles?.role === 'siswa' ? 'Siswa' : 'Guru'}
+                        </Badge>
+                        {item.alat?.kategori && getCategoryBadge(item.alat.kategori)}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div className="space-y-1">
+                          <p><strong>Peminjam:</strong> {item.profiles?.nama_lengkap || 'Nama tidak tersedia'}</p>
+                          {item.profiles?.role === 'siswa' && (
+                            <p><strong>Kelas:</strong> {item.profiles?.kelas} - {item.profiles?.jurusan}</p>
+                          )}
+                          <p><strong>Jumlah:</strong> {item.jumlah}</p>
+                          {item.keperluan && (
+                            <p><strong>Keperluan:</strong> {item.keperluan}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <p><strong>Tanggal Pinjam:</strong> {new Date(item.tanggal_pinjam).toLocaleDateString('id-ID')}</p>
+                          {item.tanggal_kembali_rencana && (
+                            <p><strong>Rencana Kembali:</strong> {new Date(item.tanggal_kembali_rencana).toLocaleDateString('id-ID')}</p>
+                          )}
+                          {item.tanggal_kembali && (
+                            <p><strong>Tanggal Kembali:</strong> {new Date(item.tanggal_kembali).toLocaleDateString('id-ID')}</p>
+                          )}
+                          <p><strong>Dibuat:</strong> {new Date(item.created_at).toLocaleDateString('id-ID')}</p>
+                          {item.keterangan && (
+                            <p><strong>Keterangan:</strong> {item.keterangan}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 ml-4">
+                      {item.status === 'pending' && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproval(item.id, 'disetujui')}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Setujui
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleApproval(item.id, 'ditolak')}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Tolak
+                          </Button>
+                        </>
+                      )}
+                      
+                      {item.status === 'disetujui' && !item.dikembalikan && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReturn(item.id)}
+                        >
+                          <Package className="h-4 w-4 mr-1" />
+                          Konfirmasi Kembali
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </div>
       </CardContent>

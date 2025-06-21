@@ -46,11 +46,12 @@ const StudentDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch available tools
+      // Fetch available tools with better error handling for images
       const { data: alatData, error: alatError } = await supabase
         .from('alat')
         .select('*')
-        .order('nama');
+        .order('kategori', { ascending: true })
+        .order('nama', { ascending: true });
 
       if (alatError) throw alatError;
       setAlat(alatData || []);
@@ -62,7 +63,7 @@ const StudentDashboard = () => {
           .from('peminjaman')
           .select(`
             *,
-            alat:alat_id (nama)
+            alat:alat_id (nama, kategori)
           `)
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false });
@@ -111,6 +112,29 @@ const StudentDashboard = () => {
       return <Badge variant="default">Tersedia</Badge>;
     }
   };
+
+  const getCategoryBadge = (kategori: string) => {
+    const colors = {
+      'alat': 'bg-blue-100 text-blue-800',
+      'bahan': 'bg-green-100 text-green-800'
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[kategori as keyof typeof colors] || 'bg-gray-100 text-gray-800'}`}>
+        {kategori || 'Tidak dikategorikan'}
+      </span>
+    );
+  };
+
+  // Group tools by category
+  const groupedAlat = alat.reduce((acc, item) => {
+    const kategori = item.kategori || 'Tidak dikategorikan';
+    if (!acc[kategori]) {
+      acc[kategori] = [];
+    }
+    acc[kategori].push(item);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   if (loading) {
     return (
@@ -161,35 +185,50 @@ const StudentDashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Alat Tersedia
+                Alat & Bahan Tersedia
               </CardTitle>
               <CardDescription>
-                Daftar alat dan barang yang tersedia di bengkel
+                Daftar alat dan bahan yang tersedia di bengkel
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {alat.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {item.gambar_url && (
-                          <img 
-                            src={item.gambar_url} 
-                            alt={item.nama}
-                            className="w-12 h-12 object-cover rounded-md"
-                          />
-                        )}
-                        <div>
-                          <h4 className="font-medium">{item.nama}</h4>
-                          <p className="text-sm text-gray-600">Stok: {item.jumlah} • {item.kondisi}</p>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {Object.entries(groupedAlat).map(([kategori, items]) => (
+                  <div key={kategori} className="space-y-2">
+                    <h4 className="font-semibold text-sm text-gray-700 border-b pb-1">
+                      {kategori.toUpperCase()}
+                    </h4>
+                    {items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            {item.gambar_url && (
+                              <img 
+                                src={item.gambar_url} 
+                                alt={item.nama}
+                                className="w-12 h-12 object-cover rounded-md"
+                                onError={(e) => {
+                                  console.log('Image failed to load:', item.gambar_url);
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                                onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
+                              />
+                            )}
+                            <div>
+                              <h4 className="font-medium">{item.nama}</h4>
+                              <p className="text-sm text-gray-600">Stok: {item.jumlah} • {item.kondisi}</p>
+                              <div className="mt-1">
+                                {getCategoryBadge(item.kategori)}
+                              </div>
+                            </div>
+                          </div>
+                          {item.deskripsi && (
+                            <p className="text-xs text-gray-500 mt-1">{item.deskripsi}</p>
+                          )}
                         </div>
+                        {getStokBadge(item.jumlah, item.status_stok)}
                       </div>
-                      {item.deskripsi && (
-                        <p className="text-xs text-gray-500 mt-1">{item.deskripsi}</p>
-                      )}
-                    </div>
-                    {getStokBadge(item.jumlah, item.status_stok)}
+                    ))}
                   </div>
                 ))}
                 {alat.length === 0 && (
@@ -215,7 +254,14 @@ const StudentDashboard = () => {
                 {peminjaman.map((item) => (
                   <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium">{item.alat?.nama}</h4>
+                      <div>
+                        <h4 className="font-medium">{item.alat?.nama}</h4>
+                        {item.alat?.kategori && (
+                          <div className="mt-1">
+                            {getCategoryBadge(item.alat.kategori)}
+                          </div>
+                        )}
+                      </div>
                       {getStatusBadge(item.status)}
                     </div>
                     <div className="text-sm text-gray-600 space-y-1">
