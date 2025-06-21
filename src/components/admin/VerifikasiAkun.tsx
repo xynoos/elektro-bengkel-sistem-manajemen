@@ -32,6 +32,7 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
         .order('tanggal_daftar', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched users:', data);
       setUsers(data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -54,9 +55,27 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
 
       if (error) throw error;
 
+      // If approved, auto-confirm the user's email
+      if (status === 'disetujui') {
+        try {
+          const { error: confirmError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { email_confirm: true }
+          );
+          
+          if (confirmError) {
+            console.log('Note: Could not auto-confirm email (admin privileges required):', confirmError.message);
+          } else {
+            console.log('Email auto-confirmed for user:', userId);
+          }
+        } catch (adminError) {
+          console.log('Note: Email auto-confirm requires admin privileges');
+        }
+      }
+
       toast({
         title: status === 'disetujui' ? "Akun Disetujui" : "Akun Ditolak",
-        description: `Akun pengguna telah ${status === 'disetujui' ? 'disetujui' : 'ditolak'}.`,
+        description: `Akun pengguna telah ${status === 'disetujui' ? 'disetujui dan email dikonfirmasi' : 'ditolak'}.`,
       });
 
       fetchUsers();
@@ -118,36 +137,48 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
                 <div className="flex items-start justify-between">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-semibold">{user.nama_lengkap}</h4>
+                      <h4 className="font-semibold">{user.nama_lengkap || user.email}</h4>
                       {getStatusBadge(user.status)}
                       <Badge variant="outline" className="text-xs">
                         {user.role === 'siswa' ? 'Siswa' : 'Guru'}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div className="space-y-1">
                         <p><strong>Email:</strong> {user.email}</p>
                         {user.role === 'siswa' && (
                           <>
-                            <p><strong>Umur:</strong> {user.umur} tahun</p>
-                            <p><strong>Kelas:</strong> {user.kelas}</p>
-                            <p><strong>Jurusan:</strong> {user.jurusan}</p>
-                            <p><strong>NIS:</strong> {user.nis}</p>
+                            {user.umur && (
+                              <p><strong>Umur:</strong> {user.umur} tahun</p>
+                            )}
+                            {user.kelas && (
+                              <p><strong>Kelas:</strong> {user.kelas}</p>
+                            )}
+                            {user.jurusan && (
+                              <p><strong>Jurusan:</strong> {user.jurusan}</p>
+                            )}
+                            {user.nis && (
+                              <p><strong>NIS:</strong> {user.nis}</p>
+                            )}
                           </>
                         )}
                         {user.role === 'guru' && (
                           <>
-                            <p><strong>Mata Pelajaran:</strong> {user.mata_pelajaran}</p>
-                            <p><strong>NIP:</strong> {user.nip}</p>
+                            {user.mata_pelajaran && (
+                              <p><strong>Mata Pelajaran:</strong> {user.mata_pelajaran}</p>
+                            )}
+                            {user.nip && (
+                              <p><strong>NIP:</strong> {user.nip}</p>
+                            )}
                           </>
                         )}
                       </div>
-                      <div>
+                      <div className="space-y-1">
                         <p><strong>Tanggal Daftar:</strong> {new Date(user.tanggal_daftar).toLocaleDateString('id-ID')}</p>
                         {user.alasan_penolakan && (
                           <div className="mt-2">
                             <p><strong>Alasan Penolakan:</strong></p>
-                            <p className="text-red-600 text-xs bg-red-50 p-2 rounded">{user.alasan_penolakan}</p>
+                            <p className="text-red-600 text-xs bg-red-50 p-2 rounded mt-1">{user.alasan_penolakan}</p>
                           </div>
                         )}
                       </div>

@@ -26,12 +26,13 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
         .from('peminjaman')
         .select(`
           *,
-          profiles:user_id (nama_lengkap, kelas, jurusan),
-          alat:alat_id (nama)
+          profiles:user_id (nama_lengkap, kelas, jurusan, role),
+          alat:alat_id (nama, jumlah)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched peminjaman:', data);
       setPeminjaman(data || []);
     } catch (error) {
       console.error('Error fetching peminjaman:', error);
@@ -59,7 +60,7 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
       // If approved, update stock
       if (status === 'disetujui') {
         const peminjamanItem = peminjaman.find(p => p.id === id);
-        if (peminjamanItem) {
+        if (peminjamanItem && peminjamanItem.alat) {
           const { error: stockError } = await supabase
             .from('alat')
             .update({ 
@@ -67,7 +68,10 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
             })
             .eq('id', peminjamanItem.alat_id);
 
-          if (stockError) throw stockError;
+          if (stockError) {
+            console.error('Error updating stock:', stockError);
+            throw stockError;
+          }
         }
       }
 
@@ -94,7 +98,7 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
         .update({ 
           status: 'selesai',
           dikembalikan: true,
-          tanggal_kembali: new Date().toISOString()
+          tanggal_kembali: new Date().toISOString().split('T')[0]
         })
         .eq('id', id);
 
@@ -102,7 +106,7 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
 
       // Return stock
       const peminjamanItem = peminjaman.find(p => p.id === id);
-      if (peminjamanItem) {
+      if (peminjamanItem && peminjamanItem.alat) {
         const { data: currentAlat } = await supabase
           .from('alat')
           .select('jumlah')
@@ -173,7 +177,7 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
           Konfirmasi Peminjaman
         </CardTitle>
         <CardDescription>
-          Kelola pengajuan peminjaman alat dari siswa
+          Kelola pengajuan peminjaman alat dari siswa dan guru
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -182,28 +186,39 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
             <Card key={item.id} className="shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-3">
-                      <h4 className="font-semibold">{item.alat?.nama}</h4>
+                      <h4 className="font-semibold">{item.alat?.nama || 'Alat tidak ditemukan'}</h4>
                       {getStatusBadge(item.status)}
+                      <Badge variant="outline" className="text-xs">
+                        {item.profiles?.role === 'siswa' ? 'Siswa' : 'Guru'}
+                      </Badge>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div>
-                        <p><strong>Peminjam:</strong> {item.profiles?.nama_lengkap}</p>
-                        <p><strong>Kelas:</strong> {item.profiles?.kelas} - {item.profiles?.jurusan}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                      <div className="space-y-1">
+                        <p><strong>Peminjam:</strong> {item.profiles?.nama_lengkap || 'Nama tidak tersedia'}</p>
+                        {item.profiles?.role === 'siswa' && (
+                          <p><strong>Kelas:</strong> {item.profiles?.kelas} - {item.profiles?.jurusan}</p>
+                        )}
                         <p><strong>Jumlah:</strong> {item.jumlah}</p>
+                        {item.keperluan && (
+                          <p><strong>Keperluan:</strong> {item.keperluan}</p>
+                        )}
                       </div>
-                      <div>
-                        <p><strong>Keperluan:</strong> {item.keperluan}</p>
+                      <div className="space-y-1">
                         <p><strong>Tanggal Pinjam:</strong> {new Date(item.tanggal_pinjam).toLocaleDateString('id-ID')}</p>
+                        {item.tanggal_kembali_rencana && (
+                          <p><strong>Rencana Kembali:</strong> {new Date(item.tanggal_kembali_rencana).toLocaleDateString('id-ID')}</p>
+                        )}
                         {item.tanggal_kembali && (
                           <p><strong>Tanggal Kembali:</strong> {new Date(item.tanggal_kembali).toLocaleDateString('id-ID')}</p>
                         )}
+                        <p><strong>Dibuat:</strong> {new Date(item.created_at).toLocaleDateString('id-ID')}</p>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 ml-4">
                     {item.status === 'pending' && (
                       <>
                         <Button
