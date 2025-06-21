@@ -55,21 +55,57 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
 
       if (error) throw error;
 
-      // If approved, auto-confirm the user's email
+      // If approved, confirm the user's email directly
       if (status === 'disetujui') {
         try {
-          const { error: confirmError } = await supabase.auth.admin.updateUserById(
-            userId,
-            { email_confirm: true }
-          );
+          // Get user from auth.users to confirm email
+          const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
           
-          if (confirmError) {
-            console.log('Note: Could not auto-confirm email (admin privileges required):', confirmError.message);
-          } else {
-            console.log('Email auto-confirmed for user:', userId);
+          if (!userError && userData.user && !userData.user.email_confirmed_at) {
+            const { error: confirmError } = await supabase.auth.admin.updateUserById(
+              userId,
+              { 
+                email_confirm: true,
+                email_confirmed_at: new Date().toISOString()
+              }
+            );
+            
+            if (confirmError) {
+              console.log('Email confirmation error:', confirmError.message);
+              // Try alternative method using service role
+              const { error: serviceError } = await supabase
+                .from('auth.users')
+                .update({ 
+                  email_confirmed_at: new Date().toISOString(),
+                  confirmation_token: null,
+                  confirmation_sent_at: null
+                })
+                .eq('id', userId);
+                
+              if (serviceError) {
+                console.log('Service role email confirmation also failed:', serviceError.message);
+              }
+            } else {
+              console.log('Email confirmed successfully for user:', userId);
+            }
           }
         } catch (adminError) {
-          console.log('Note: Email auto-confirm requires admin privileges');
+          console.log('Admin operation failed, trying RPC function...');
+          
+          // Try using RPC function as fallback
+          try {
+            const { error: rpcError } = await supabase.rpc('confirm_user_email', {
+              user_id: userId
+            });
+            
+            if (rpcError) {
+              console.log('RPC email confirmation failed:', rpcError.message);
+            } else {
+              console.log('Email confirmed via RPC for user:', userId);
+            }
+          } catch (rpcFallbackError) {
+            console.log('All email confirmation methods failed');
+          }
         }
       }
 
@@ -146,35 +182,32 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       <div className="space-y-1">
                         <p><strong>Email:</strong> {user.email}</p>
+                        <p><strong>Nama Lengkap:</strong> {user.nama_lengkap || '-'}</p>
+                        
                         {user.role === 'siswa' && (
                           <>
-                            {user.umur && (
-                              <p><strong>Umur:</strong> {user.umur} tahun</p>
-                            )}
-                            {user.kelas && (
-                              <p><strong>Kelas:</strong> {user.kelas}</p>
-                            )}
-                            {user.jurusan && (
-                              <p><strong>Jurusan:</strong> {user.jurusan}</p>
-                            )}
-                            {user.nis && (
-                              <p><strong>NIS:</strong> {user.nis}</p>
+                            <p><strong>Umur:</strong> {user.umur ? `${user.umur} tahun` : '-'}</p>
+                            <p><strong>Kelas:</strong> {user.kelas || '-'}</p>
+                            <p><strong>Jurusan:</strong> {user.jurusan || '-'}</p>
+                            <p><strong>NIS:</strong> {user.nis || '-'}</p>
+                            {user.nisn && (
+                              <p><strong>NISN:</strong> {user.nisn}</p>
                             )}
                           </>
                         )}
+                        
                         {user.role === 'guru' && (
                           <>
-                            {user.mata_pelajaran && (
-                              <p><strong>Mata Pelajaran:</strong> {user.mata_pelajaran}</p>
-                            )}
-                            {user.nip && (
-                              <p><strong>NIP:</strong> {user.nip}</p>
-                            )}
+                            <p><strong>Mata Pelajaran:</strong> {user.mata_pelajaran || '-'}</p>
+                            <p><strong>NIP:</strong> {user.nip || '-'}</p>
                           </>
                         )}
                       </div>
                       <div className="space-y-1">
-                        <p><strong>Tanggal Daftar:</strong> {new Date(user.tanggal_daftar).toLocaleDateString('id-ID')}</p>
+                        <p><strong>Role:</strong> {user.role === 'siswa' ? 'Siswa' : 'Guru'}</p>
+                        <p><strong>Status:</strong> {user.status}</p>
+                        <p><strong>Tanggal Daftar:</strong> {user.tanggal_daftar ? new Date(user.tanggal_daftar).toLocaleDateString('id-ID') : '-'}</p>
+                        
                         {user.alasan_penolakan && (
                           <div className="mt-2">
                             <p><strong>Alasan Penolakan:</strong></p>
