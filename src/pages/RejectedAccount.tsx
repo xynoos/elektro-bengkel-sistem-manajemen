@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { XCircle, ArrowLeft, Mail } from "lucide-react";
+import { XCircle, ArrowLeft, RefreshCw } from "lucide-react";
 
 const RejectedAccount = () => {
   const navigate = useNavigate();
@@ -77,7 +77,7 @@ const RejectedAccount = () => {
               Akun Ditolak
             </CardTitle>
             <CardDescription className="text-lg">
-              Maaf, akun Anda tidak dapat diverifikasi saat ini
+              Maaf, akun Anda telah ditolak oleh admin
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -100,45 +100,60 @@ const RejectedAccount = () => {
                       Ditolak
                     </span>
                   </div>
+                  {profile.role === 'siswa' && (
+                    <>
+                      <div>
+                        <span className="font-medium">Kelas:</span> {profile.kelas}
+                      </div>
+                      <div>
+                        <span className="font-medium">Jurusan:</span> {profile.jurusan}
+                      </div>
+                      <div>
+                        <span className="font-medium">NIS:</span> {profile.nis}
+                      </div>
+                    </>
+                  )}
+                  {profile.role === 'guru' && (
+                    <>
+                      <div>
+                        <span className="font-medium">Mata Pelajaran:</span> {profile.mata_pelajaran}
+                      </div>
+                      <div>
+                        <span className="font-medium">NIP:</span> {profile.nip}
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <span className="font-medium">Tanggal Daftar:</span> {new Date(profile.tanggal_daftar).toLocaleDateString('id-ID')}
+                  </div>
                 </div>
               </div>
             )}
 
             {profile?.alasan_penolakan && (
-              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                <h4 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
-                  <XCircle className="h-4 w-4" />
-                  Alasan Penolakan:
-                </h4>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-red-800 mb-2">Alasan Penolakan:</h4>
                 <p className="text-red-700">{profile.alasan_penolakan}</p>
               </div>
             )}
 
             <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Langkah Selanjutnya:
-              </h4>
+              <h4 className="font-semibold text-blue-800 mb-2">Langkah Selanjutnya:</h4>
               <ul className="text-blue-700 text-sm space-y-1">
-                <li>• Hubungi admin sekolah untuk klarifikasi lebih lanjut</li>
-                <li>• Pastikan data yang Anda berikan sudah benar dan lengkap</li>
-                <li>• Anda dapat mendaftar ulang dengan data yang sudah diperbaiki</li>
-                <li>• Email admin: admin@smkeletro.ac.id</li>
+                <li>• Hubungi admin untuk mendapatkan penjelasan lebih lanjut</li>
+                <li>• Perbaiki data yang tidak sesuai dan daftar ulang</li>
+                <li>• Pastikan semua informasi yang diberikan akurat dan valid</li>
               </ul>
             </div>
 
             <div className="flex gap-3 justify-center">
               <Button
-                onClick={() => {
-                  if (profile?.role === 'siswa') {
-                    navigate('/student-register');
-                  } else {
-                    navigate('/teacher-register');
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={checkUserStatus}
+                variant="outline"
+                className="flex items-center gap-2"
               >
-                Daftar Ulang
+                <RefreshCw className="h-4 w-4" />
+                Refresh Status
               </Button>
               <Button
                 onClick={handleLogout}
@@ -146,7 +161,7 @@ const RejectedAccount = () => {
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Kembali ke Beranda
+                Logout
               </Button>
             </div>
           </CardContent>

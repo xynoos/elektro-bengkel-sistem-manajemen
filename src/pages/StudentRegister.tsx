@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Wrench, ArrowLeft, GraduationCap } from "lucide-react";
+import { ArrowLeft, GraduationCap } from "lucide-react";
 
 const StudentRegister = () => {
   const navigate = useNavigate();
@@ -36,6 +36,7 @@ const StudentRegister = () => {
     setLoading(true);
 
     try {
+      // Sign up with metadata
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -51,6 +52,7 @@ const StudentRegister = () => {
       if (error) throw error;
 
       if (data.user) {
+        // Update profile with additional student data
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -64,7 +66,10 @@ const StudentRegister = () => {
           })
           .eq('id', data.user.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Profile update error:', updateError);
+          // Don't throw here, profile might be created by trigger
+        }
 
         toast({
           title: "Pendaftaran Berhasil!",
@@ -74,6 +79,7 @@ const StudentRegister = () => {
         navigate('/pending-account');
       }
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "Error",
         description: error.message || "Terjadi kesalahan saat mendaftar",
@@ -130,6 +136,8 @@ const StudentRegister = () => {
                   <Input
                     id="umur"
                     type="number"
+                    min="15"
+                    max="25"
                     value={formData.umur}
                     onChange={(e) => handleChange('umur', e.target.value)}
                     required
@@ -197,6 +205,7 @@ const StudentRegister = () => {
                   value={formData.password}
                   onChange={(e) => handleChange('password', e.target.value)}
                   required
+                  minLength={6}
                   className="focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

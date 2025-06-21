@@ -103,13 +103,16 @@ export type Database = {
       }
       profiles: {
         Row: {
+          alasan_penolakan: string | null
           created_at: string | null
           email: string | null
           id: string
           jurusan: string | null
           kelas: string | null
+          mata_pelajaran: string | null
           nama: string | null
           nama_lengkap: string | null
+          nip: string | null
           nis: string | null
           nisn: string | null
           role: string | null
@@ -119,13 +122,16 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          alasan_penolakan?: string | null
           created_at?: string | null
           email?: string | null
           id: string
           jurusan?: string | null
           kelas?: string | null
+          mata_pelajaran?: string | null
           nama?: string | null
           nama_lengkap?: string | null
+          nip?: string | null
           nis?: string | null
           nisn?: string | null
           role?: string | null
@@ -135,13 +141,16 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          alasan_penolakan?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           jurusan?: string | null
           kelas?: string | null
+          mata_pelajaran?: string | null
           nama?: string | null
           nama_lengkap?: string | null
+          nip?: string | null
           nis?: string | null
           nisn?: string | null
           role?: string | null

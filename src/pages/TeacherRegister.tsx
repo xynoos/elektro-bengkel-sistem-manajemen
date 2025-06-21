@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Wrench, ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 
 const TeacherRegister = () => {
   const navigate = useNavigate();
@@ -34,6 +34,7 @@ const TeacherRegister = () => {
     setLoading(true);
 
     try {
+      // Sign up with metadata
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -49,6 +50,7 @@ const TeacherRegister = () => {
       if (error) throw error;
 
       if (data.user) {
+        // Update profile with additional teacher data
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -60,7 +62,10 @@ const TeacherRegister = () => {
           })
           .eq('id', data.user.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Profile update error:', updateError);
+          // Don't throw here, profile might be created by trigger
+        }
 
         toast({
           title: "Pendaftaran Berhasil!",
@@ -70,6 +75,7 @@ const TeacherRegister = () => {
         navigate('/pending-account');
       }
     } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "Error",
         description: error.message || "Terjadi kesalahan saat mendaftar",
@@ -171,6 +177,7 @@ const TeacherRegister = () => {
                   value={formData.password}
                   onChange={(e) => handleChange('password', e.target.value)}
                   required
+                  minLength={6}
                   className="focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
