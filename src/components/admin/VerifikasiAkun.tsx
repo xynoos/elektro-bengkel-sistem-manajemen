@@ -55,63 +55,31 @@ const VerifikasiAkun = ({ onStatsUpdate }: VerifikasiAkunProps) => {
 
       if (error) throw error;
 
-      // If approved, confirm the user's email directly
+      // If approved, attempt to confirm the user's email using admin methods
       if (status === 'disetujui') {
         try {
-          // Get user from auth.users to confirm email
-          const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-          
-          if (!userError && userData.user && !userData.user.email_confirmed_at) {
-            const { error: confirmError } = await supabase.auth.admin.updateUserById(
-              userId,
-              { 
-                email_confirm: true,
-                email_confirmed_at: new Date().toISOString()
-              }
-            );
-            
-            if (confirmError) {
-              console.log('Email confirmation error:', confirmError.message);
-              // Try alternative method using service role
-              const { error: serviceError } = await supabase
-                .from('auth.users')
-                .update({ 
-                  email_confirmed_at: new Date().toISOString(),
-                  confirmation_token: null,
-                  confirmation_sent_at: null
-                })
-                .eq('id', userId);
-                
-              if (serviceError) {
-                console.log('Service role email confirmation also failed:', serviceError.message);
-              }
-            } else {
-              console.log('Email confirmed successfully for user:', userId);
+          // Try using the admin updateUserById method with correct property name
+          const { error: confirmError } = await supabase.auth.admin.updateUserById(
+            userId,
+            { 
+              email_confirm: true
             }
+          );
+          
+          if (confirmError) {
+            console.log('Email confirmation error:', confirmError.message);
+            // Note: Email confirmation may require service role key or may not be possible with current permissions
+          } else {
+            console.log('Email confirmed successfully for user:', userId);
           }
         } catch (adminError) {
-          console.log('Admin operation failed, trying RPC function...');
-          
-          // Try using RPC function as fallback
-          try {
-            const { error: rpcError } = await supabase.rpc('confirm_user_email', {
-              user_id: userId
-            });
-            
-            if (rpcError) {
-              console.log('RPC email confirmation failed:', rpcError.message);
-            } else {
-              console.log('Email confirmed via RPC for user:', userId);
-            }
-          } catch (rpcFallbackError) {
-            console.log('All email confirmation methods failed');
-          }
+          console.log('Admin operation failed - this may be due to insufficient permissions');
         }
       }
 
       toast({
         title: status === 'disetujui' ? "Akun Disetujui" : "Akun Ditolak",
-        description: `Akun pengguna telah ${status === 'disetujui' ? 'disetujui dan email dikonfirmasi' : 'ditolak'}.`,
+        description: `Akun pengguna telah ${status === 'disetujui' ? 'disetujui' : 'ditolak'}.`,
       });
 
       fetchUsers();
