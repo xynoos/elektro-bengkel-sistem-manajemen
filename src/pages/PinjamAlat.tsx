@@ -48,7 +48,7 @@ const PinjamAlat = () => {
       .eq('id', session.user.id)
       .single();
 
-    if (profile?.role !== 'umum' || profile?.status !== 'disetujui') {
+    if (!profile || (profile.role !== 'umum' && profile.role !== 'siswa' && profile.role !== 'guru') || profile.status !== 'disetujui') {
       navigate('/');
       return;
     }
@@ -67,6 +67,7 @@ const PinjamAlat = () => {
         .order('nama', { ascending: true });
 
       if (error) throw error;
+      console.log('Fetched alat data:', data);
       setAlat(data || []);
     } catch (error) {
       console.error('Error fetching alat:', error);
@@ -74,6 +75,7 @@ const PinjamAlat = () => {
   };
 
   const handleItemSelect = (item: any, checked: boolean) => {
+    console.log('Item selected:', item, 'Checked:', checked);
     if (checked) {
       setSelectedItems(prev => [...prev, {
         alat_id: item.id,
@@ -113,6 +115,7 @@ const PinjamAlat = () => {
 
       // Create individual peminjaman records for each selected item
       for (const item of selectedItems) {
+        // First, create the peminjaman record
         const { error: peminjamanError } = await supabase
           .from('peminjaman')
           .insert({
@@ -127,15 +130,20 @@ const PinjamAlat = () => {
 
         if (peminjamanError) throw peminjamanError;
 
-        // Reduce stock when peminjaman is created (will be restored if rejected)
-        const { error: stockError } = await supabase
-          .from('alat')
-          .update({ 
-            jumlah: Math.max(0, (alat.find(a => a.id === item.alat_id)?.jumlah || 0) - item.jumlah)
-          })
-          .eq('id', item.alat_id);
+        // Then, reduce the stock
+        const currentAlat = alat.find(a => a.id === item.alat_id);
+        if (currentAlat) {
+          const newStock = Math.max(0, currentAlat.jumlah - item.jumlah);
+          const { error: stockError } = await supabase
+            .from('alat')
+            .update({ 
+              jumlah: newStock,
+              status_stok: newStock === 0 ? 'habis' : (newStock <= 5 ? 'hampir_habis' : 'aman')
+            })
+            .eq('id', item.alat_id);
 
-        if (stockError) throw stockError;
+          if (stockError) throw stockError;
+        }
       }
 
       toast({
@@ -145,6 +153,7 @@ const PinjamAlat = () => {
 
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('Error submitting peminjaman:', error);
       toast({
         title: "Error",
         description: error.message || "Terjadi kesalahan saat mengajukan peminjaman",
@@ -183,6 +192,10 @@ const PinjamAlat = () => {
     acc[kategori].push(item);
     return acc;
   }, {} as Record<string, any[]>);
+
+  const isItemSelected = (itemId: string) => {
+    return selectedItems.some(selected => selected.alat_id === itemId);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -226,20 +239,24 @@ const PinjamAlat = () => {
                           {items.map((item) => (
                             <div key={item.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border">
                               <Checkbox
-                                id={item.id}
-                                checked={selectedItems.some(selected => selected.alat_id === item.id)}
+                                id={`item-${item.id}`}
+                                checked={isItemSelected(item.id)}
                                 onCheckedChange={(checked) => handleItemSelect(item, checked as boolean)}
                               />
                               <div className="flex items-center gap-3 flex-1">
                                 {item.gambar_url && (
-                                  <img 
-                                    src={item.gambar_url} 
-                                    alt={item.nama}
-                                    className="w-12 h-12 object-cover rounded-md"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
-                                    }}
-                                  />
+                                  <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-200 flex-shrink-0">
+                                    <img 
+                                      src={item.gambar_url} 
+                                      alt={item.nama}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        console.log('Image failed to load:', item.gambar_url);
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                      onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
+                                    />
+                                  </div>
                                 )}
                                 <div className="flex-1">
                                   <h5 className="font-medium">{item.nama}</h5>
@@ -257,6 +274,9 @@ const PinjamAlat = () => {
                         </div>
                       </div>
                     ))}
+                    {Object.keys(groupedAlat).length === 0 && (
+                      <p className="text-center text-gray-500 py-8">Tidak ada alat yang tersedia</p>
+                    )}
                   </div>
                 </div>
 
