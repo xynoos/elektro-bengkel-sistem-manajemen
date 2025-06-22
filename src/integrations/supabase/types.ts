@@ -16,6 +16,7 @@ export type Database = {
           gambar_url: string | null
           id: string
           jumlah: number
+          kategori: string | null
           kondisi: string
           nama: string
           status_stok: string
@@ -27,6 +28,7 @@ export type Database = {
           gambar_url?: string | null
           id?: string
           jumlah?: number
+          kategori?: string | null
           kondisi: string
           nama: string
           status_stok: string
@@ -38,6 +40,7 @@ export type Database = {
           gambar_url?: string | null
           id?: string
           jumlah?: number
+          kategori?: string | null
           kondisi?: string
           nama?: string
           status_stok?: string
