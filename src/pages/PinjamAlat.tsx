@@ -48,7 +48,7 @@ const PinjamAlat = () => {
       .eq('id', session.user.id)
       .single();
 
-    if (!profile || (profile.role !== 'umum' && profile.role !== 'siswa' && profile.role !== 'guru') || profile.status !== 'disetujui') {
+    if (!profile || !['umum', 'siswa', 'guru'].includes(profile.role) || profile.status !== 'disetujui') {
       navigate('/');
       return;
     }
@@ -75,16 +75,25 @@ const PinjamAlat = () => {
   };
 
   const handleItemSelect = (item: any, checked: boolean) => {
-    console.log('Item selected:', item, 'Checked:', checked);
+    console.log('Item selected:', item.nama, 'Checked:', checked);
+    
     if (checked) {
-      setSelectedItems(prev => [...prev, {
-        alat_id: item.id,
-        jumlah: 1,
-        nama: item.nama,
-        stok_tersedia: item.jumlah
-      }]);
+      setSelectedItems(prev => {
+        const newItems = [...prev, {
+          alat_id: item.id,
+          jumlah: 1,
+          nama: item.nama,
+          stok_tersedia: item.jumlah
+        }];
+        console.log('Updated selected items:', newItems);
+        return newItems;
+      });
     } else {
-      setSelectedItems(prev => prev.filter(selected => selected.alat_id !== item.id));
+      setSelectedItems(prev => {
+        const filtered = prev.filter(selected => selected.alat_id !== item.id);
+        console.log('Removed item, remaining:', filtered);
+        return filtered;
+      });
     }
   };
 
@@ -108,6 +117,24 @@ const PinjamAlat = () => {
       return;
     }
 
+    if (!formData.keperluan.trim()) {
+      toast({
+        title: "Error", 
+        description: "Keperluan peminjaman harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.tanggal_kembali_rencana) {
+      toast({
+        title: "Error",
+        description: "Tanggal rencana pengembalian harus diisi", 
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -115,6 +142,8 @@ const PinjamAlat = () => {
 
       // Create individual peminjaman records for each selected item
       for (const item of selectedItems) {
+        console.log('Processing item:', item);
+        
         // First, create the peminjaman record
         const { error: peminjamanError } = await supabase
           .from('peminjaman')
@@ -128,21 +157,38 @@ const PinjamAlat = () => {
             status: 'pending'
           });
 
-        if (peminjamanError) throw peminjamanError;
+        if (peminjamanError) {
+          console.error('Error creating peminjaman:', peminjamanError);
+          throw peminjamanError;
+        }
 
         // Then, reduce the stock
         const currentAlat = alat.find(a => a.id === item.alat_id);
         if (currentAlat) {
           const newStock = Math.max(0, currentAlat.jumlah - item.jumlah);
+          let newStatus = 'aman';
+          
+          if (newStock === 0) {
+            newStatus = 'habis';
+          } else if (newStock <= 5) {
+            newStatus = 'hampir_habis';
+          }
+
+          console.log('Updating stock for item:', item.nama, 'New stock:', newStock, 'New status:', newStatus);
+
           const { error: stockError } = await supabase
             .from('alat')
             .update({ 
               jumlah: newStock,
-              status_stok: newStock === 0 ? 'habis' : (newStock <= 5 ? 'hampir_habis' : 'aman')
+              status_stok: newStatus,
+              updated_at: new Date().toISOString()
             })
             .eq('id', item.alat_id);
 
-          if (stockError) throw stockError;
+          if (stockError) {
+            console.error('Error updating stock:', stockError);
+            throw stockError;
+          }
         }
       }
 
@@ -194,8 +240,13 @@ const PinjamAlat = () => {
   }, {} as Record<string, any[]>);
 
   const isItemSelected = (itemId: string) => {
-    return selectedItems.some(selected => selected.alat_id === itemId);
+    const selected = selectedItems.some(selected => selected.alat_id === itemId);
+    console.log('Checking if item selected:', itemId, 'Result:', selected);
+    return selected;
   };
+
+  console.log('Current selected items:', selectedItems);
+  console.log('Available alat:', alat);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -241,7 +292,10 @@ const PinjamAlat = () => {
                               <Checkbox
                                 id={`item-${item.id}`}
                                 checked={isItemSelected(item.id)}
-                                onCheckedChange={(checked) => handleItemSelect(item, checked as boolean)}
+                                onCheckedChange={(checked) => {
+                                  console.log('Checkbox clicked for:', item.nama, 'New value:', checked);
+                                  handleItemSelect(item, checked as boolean);
+                                }}
                               />
                               <div className="flex items-center gap-3 flex-1">
                                 {item.gambar_url && (
@@ -252,7 +306,9 @@ const PinjamAlat = () => {
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
                                         console.log('Image failed to load:', item.gambar_url);
-                                        e.currentTarget.style.display = 'none';
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        target.parentElement!.innerHTML = `<div class="w-full h-full bg-gray-300 flex items-center justify-center text-xs text-gray-500">No Image</div>`;
                                       }}
                                       onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
                                     />
