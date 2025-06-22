@@ -46,7 +46,7 @@ const StudentDashboard = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch available tools with better error handling for images
+      // Fetch available tools
       const { data: alatData, error: alatError } = await supabase
         .from('alat')
         .select('*')
@@ -203,16 +203,18 @@ const StudentDashboard = () => {
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             {item.gambar_url && (
-                              <img 
-                                src={item.gambar_url} 
-                                alt={item.nama}
-                                className="w-12 h-12 object-cover rounded-md"
-                                onError={(e) => {
-                                  console.log('Image failed to load:', item.gambar_url);
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                                onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
-                              />
+                              <div className="w-12 h-12 rounded-md overflow-hidden bg-gray-200 flex-shrink-0">
+                                <img 
+                                  src={item.gambar_url} 
+                                  alt={item.nama}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    console.log('Image failed to load:', item.gambar_url);
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                  onLoad={() => console.log('Image loaded successfully:', item.gambar_url)}
+                                />
+                              </div>
                             )}
                             <div>
                               <h4 className="font-medium">{item.nama}</h4>
