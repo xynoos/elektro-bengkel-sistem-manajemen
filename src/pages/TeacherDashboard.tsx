@@ -126,8 +126,8 @@ const TeacherDashboard = () => {
     );
   };
 
-  // Group tools by category
-  const groupedAlat = alat.reduce((acc, item) => {
+  // Group tools by category with proper typing
+  const groupedAlat: Record<string, any[]> = alat.reduce((acc, item) => {
     const kategori = item.kategori || 'Tidak dikategorikan';
     if (!acc[kategori]) {
       acc[kategori] = [];
