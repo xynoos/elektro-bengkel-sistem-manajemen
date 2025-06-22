@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,18 +21,45 @@ const KonfirmasiPeminjaman = ({ onStatsUpdate }: KonfirmasiPeminjamanProps) => {
 
   const fetchPeminjaman = async () => {
     try {
-      const { data, error } = await supabase
+      // First, get all peminjaman records
+      const { data: peminjamanData, error: peminjamanError } = await supabase
         .from('peminjaman')
-        .select(`
-          *,
-          profiles:user_id (nama_lengkap, kelas, jurusan, role),
-          alat:alat_id (nama, jumlah, kategori)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      console.log('Fetched peminjaman:', data);
-      setPeminjaman(data || []);
+      if (peminjamanError) throw peminjamanError;
+
+      // Then get user profiles and alat data separately
+      const userIds = [...new Set(peminjamanData?.map(p => p.user_id) || [])];
+      const alatIds = [...new Set(peminjamanData?.map(p => p.alat_id) || [])];
+
+      const [profilesResult, alatResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, nama_lengkap, kelas, jurusan, role')
+          .in('id', userIds),
+        supabase
+          .from('alat')
+          .select('id, nama, jumlah, kategori')
+          .in('id', alatIds)
+      ]);
+
+      if (profilesResult.error) throw profilesResult.error;
+      if (alatResult.error) throw alatResult.error;
+
+      // Create lookup maps
+      const profilesMap = new Map(profilesResult.data?.map(p => [p.id, p]) || []);
+      const alatMap = new Map(alatResult.data?.map(a => [a.id, a]) || []);
+
+      // Combine the data
+      const enrichedPeminjaman = peminjamanData?.map(peminjaman => ({
+        ...peminjaman,
+        profiles: profilesMap.get(peminjaman.user_id),
+        alat: alatMap.get(peminjaman.alat_id)
+      })) || [];
+
+      console.log('Fetched peminjaman:', enrichedPeminjaman);
+      setPeminjaman(enrichedPeminjaman);
     } catch (error) {
       console.error('Error fetching peminjaman:', error);
       toast({
